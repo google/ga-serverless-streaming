@@ -28,6 +28,7 @@ from modules import hit_schema
 from modules.hit_schema import get_schema
 from ua_parser import user_agent_parser
 from urllib.parse import urlparse
+from urllib.parse import parse_qsl
 from pytz import timezone
 from datetime import datetime
 
@@ -39,12 +40,12 @@ class FormatHit(beam.DoFn):
     """Populates an object matching the table schema."""
     
     ua = self.parse_ua(payload)
-    url = urlparse(payload.getset_ua_data('dl'))
+    url = urlparse(payload.get('dl'))
     return {
         'serverTimeUtc':
             payload.get('serverTimeUtc'),
         'serverDatetimeLocal':
-            payload.get('serverDatetimeLocal'),
+            payload.get('serverDatetimeLocal')[:-6],
         'clientId':
             payload.get('cid'),
         'userId':
@@ -360,7 +361,6 @@ class FormatHit(beam.DoFn):
 
   def set_traffic_source(self, payload, url):
     """Sets traffic source."""
-    from urlparse import parse_qsl
 
     params = dict(parse_qsl(url.query))
     if params.get('utm_source'):
@@ -462,11 +462,7 @@ def run(argv=None):
         args.dataset,
         schema=get_schema(),
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))#.to(
-    #    TableRefPartition.perDay(
-    #    args.project_id,
-    #    args.dataset,
-    #    args.table_prefix + '_')))
+        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
 
 
 if __name__ == '__main__':
