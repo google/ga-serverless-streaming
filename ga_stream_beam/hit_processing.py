@@ -227,7 +227,7 @@ class FormatHit(beam.DoFn):
     for key in keys:
       definition = {
           'index': int(re.search(r'cm([0-9]+)', key).group(1)),
-          'value': int(payload.get(key))
+          'value': payload.get(key)
       }
       definitions.append(definition)
     return definitions
