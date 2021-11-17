@@ -1,4 +1,5 @@
 #!/bin/bash
+#!/bin/bash
 ###########################################################################
 #
 #  Copyright 2021 Google Inc.
@@ -23,6 +24,7 @@ read -p "Please enter your GCP PROJECT ID: " project_id
 echo "---------------------------"
 echo "~~~~~~~~ Enabling APIs ~~~~~~~~~~"
 gcloud services enable \
+cloudbuild.googleapis.com \
 dataflow.googleapis.com \
 compute.googleapis.com \
 cloudfunctions.googleapis.com \
@@ -59,16 +61,19 @@ read -p "Please enter staging bucket name: " staging_bucket_name
 echo "~~~~~~~~ Creating Staging Bucket ~~~~~~~~~~"
 gsutil mb gs://$staging_bucket_name
 echo "---------------------------"
-read -p "Please enter the new BigQuery table name where the streaming hits will be stored: " bq_table_name
-echo "~~~~~~~~ Creating BigQuery Table ~~~~~~~~~~"
-bq mk $bq_table_name
+read -p "Please enter the new BigQuery dataset name (recommended: ga_data): " dataset_name
+echo "---------------------------"
+echo "~~~~~~~~ Creating BigQuery Dataset ~~~~~~~~~~"
+bq mk $project_id:$dataset_name
+echo "---------------------------"
+read -p "Please enter the new BigQuery table name (recommended: ga_hits): " table_name
+bq mk -t --time_partitioning_type=DAY $project_id:$dataset_name.$table_name
 echo "~~~~~~~~ Installing Apache Beam Python SDK ~~~~~~~~~~"
 pip3 install apache-beam[gcp]
 echo "~~~~~~~~ Installing Package Dependencies ~~~~~~~~~~"
 pip3 install ua-parser
-python3 setup.py install
 echo "---------------------------"
-read -p "Please enter Dataflow job name. The name must consist of only the characters [-a-z0-9], starting with a letter and ending with a letter or number: " job_name
+read -p "Please enter Dataflow job name. The name must consist of only the characters [a-z0-9], starting with a letter and ending with a letter or number: " job_name
 echo "---------------------------"
 read -p "Please enter Dataflow job region: " job_region
 echo "~~~~~~~~ Deploying Pipeline ~~~~~~~~~~"
@@ -79,8 +84,8 @@ python3 hit_processing.py \
   --setup_file=./setup.py \
   --save_main_session True \
   --input_topic=projects/$project_id/topics/ga-hits \
-  --dataset=$bq_table_name \
-  --table_prefix=hits \
+  --dataset=$dataset_name \
+  --table=$table_name \
   --temp_location=gs://$staging_bucket_name/ \
   --staging_location=gs://$staging_bucket_name/ \
   --runner=DataflowRunner \

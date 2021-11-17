@@ -18,13 +18,11 @@ import json
 import logging
 import os
 import time
-import pytz
 
 from urllib import parse
 from flask import abort
 from flask import make_response
 from google.cloud import pubsub
-from pytz import timezone
 from datetime import datetime
 
 
@@ -77,13 +75,12 @@ def collect(request):
   # twice - so we consider the conversion into a dictionary to be safe.
   try:
     payload = dict(parse.parse_qsl(
-      raw_payload, keep_blank_values=True, strict_parsing=True))
+        raw_payload, keep_blank_values=True, strict_parsing=True))
   except ValueError as e:
     logging.exception('Error parsing hit payload: %s', e)
 
   # Add timestamp, local timezone datetime, IP, UA, and geo headers.
   payload['serverTimeUtc'] = int(time.time())
-  payload['serverDatetimeLocal'] = datetime.now(pytz.timezone(local_timezone))
   payload['ipAddress'] = request.headers.get('X-Appengine-User-Ip')
   payload['userAgent'] = request.headers.get('User-Agent')
   payload['country'] = request.headers.get('X-AppEngine-Country')

@@ -19,12 +19,12 @@ This solution sends hits directly to a Cloud Function trigger URL, which then us
 
 
 1. Navigate to your Google Cloud project and open Cloud Shell
-2. Enter the following into Cloud Shell:
+2. Enter the following into Cloud Shell
 
 
 
 ```
-rm -rf ga_serverless_Streaming && git clone https://github.com/google/ga_serverless_streaming.git && sh deploy.sh
+rm -rf ga-serverless-streaming && git clone https://github.com/google/ga-serverless-streaming.git && cd ga-serverless-streaming && bash deploy.sh
 ```
 
 

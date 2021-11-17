@@ -18,10 +18,7 @@ import argparse
 import json
 import logging
 import re
-import time
-import pytz
 
-import numpy as np
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from modules import hit_schema
@@ -29,7 +26,6 @@ from modules.hit_schema import get_schema
 from ua_parser import user_agent_parser
 from urllib.parse import urlparse
 from urllib.parse import parse_qsl
-from pytz import timezone
 from datetime import datetime
 
 
@@ -38,19 +34,17 @@ class FormatHit(beam.DoFn):
 
   def build_hit(self, payload):
     """Populates an object matching the table schema."""
-    
+
     ua = self.parse_ua(payload)
     url = urlparse(payload.get('dl'))
     return {
         'serverTimeUtc':
             payload.get('serverTimeUtc'),
-        'serverDatetimeLocal':
-            payload.get('serverDatetimeLocal')[:-6],
         'clientId':
             payload.get('cid'),
         'userId':
             payload.get('uid'),
-        'hitType': 
+        'hitType':
             payload.get('t').upper(),
         'isInteraction':
             False if payload.get('ni') == '1' else True,
@@ -129,17 +123,17 @@ class FormatHit(beam.DoFn):
                 payload.get('de'),
             'flashVersion':
                 payload.get('fv'),
-            'browser': 
+            'browser':
                 self.set_ua_data(ua, 'browser'),
-            'browserVersion': 
+            'browserVersion':
                 self.set_ua_data(ua, 'browserVersion'),
-            'mobileDeviceModel': 
+            'mobileDeviceModel':
                 self.set_ua_data(ua, 'mobileDeviceModel'),
-            'operatingSystem': 
+            'operatingSystem':
                 self.set_ua_data(ua, 'operatingSystem'),
             'operatingSystemVersion':
                  self.set_ua_data(ua, 'operatingSystemVersion'),
-            'mobileDeviceBranding': 
+            'mobileDeviceBranding':
                 self.set_ua_data(ua, 'mobileDeviceBranding'),
             'userAgent':
                 payload.get('userAgent')
@@ -182,11 +176,11 @@ class FormatHit(beam.DoFn):
     }
 
   def parse_ua(self, payload):
-      """Parses the user agent string."""
-      try:
-        return user_agent_parser.Parse(payload.get('userAgent'))
-      except:
-        return None
+    """Parses the user agent string."""
+    try:
+      return user_agent_parser.Parse(payload.get('userAgent'))
+    except:
+      return None
 
   def set_ua_data(self, ua, field):
     """Sets user agent dimensions."""
@@ -207,7 +201,7 @@ class FormatHit(beam.DoFn):
       else:
         return None
     except:
-        return None
+      return None
 
 
   def set_custom_dimensions(self, payload, keys):
@@ -291,10 +285,10 @@ class FormatHit(beam.DoFn):
           'productVariant':
               self.set_product_metadata('va', payload, product_index,
                                         list_index, is_impression),
-          'productPrice': 
+          'productPrice':
               self.set_product_metadata('pr', payload, product_index,
                                         list_index, is_impression),
-          'productQuantity': 
+          'productQuantity':
               payload.get('pr' + str(product_index) + 'qt'),
           'productCouponCode':
               payload.get('pr' + str(product_index) + 'cc'),
@@ -311,7 +305,7 @@ class FormatHit(beam.DoFn):
           'productListName':
               payload.get('il' + list_index + 'nm')
               if is_impression else payload.get('pal'),
-          'productListPosition': 
+          'productListPosition':
               self.set_product_metadata(
               'ps', payload, product_index,list_index, is_impression),
           'isImpression':
@@ -322,18 +316,18 @@ class FormatHit(beam.DoFn):
       products.append(product)
     return products
 
-  def set_product_metadata(self, param, payload, product_index, 
+  def set_product_metadata(self, param, payload, product_index,
                            list_index, is_impression):
     """Sets product metadata."""
     try:
-        metadata = None
-        if is_impression:
-            metadata = payload.get('il' + str(list_index) + 'pi' + str(product_index) + param)
-        else:
-            metadata = payload.get('pr' + str(product_index) + param)
-        return metadata
+      metadata = None
+      if is_impression:
+        metadata = payload.get('il' + str(list_index) + 'pi' + str(product_index) + param)
+      else:
+        metadata = payload.get('pr' + str(product_index) + param)
+      return metadata
     except:
-        return None
+      return None
 
   def set_ecommerce_action(self, payload):
     """Sets ecommerce action."""
@@ -437,32 +431,31 @@ def run(argv=None):
       '--project',
       dest='project_id',
       required=True,
-      help='Google Cloud Project ID.'
-  )
+      help='Google Cloud Project ID.')
   parser.add_argument(
       '--dataset',
       dest='dataset',
       required=True,
       help='BigQuery dataset to write to.')
   parser.add_argument(
-      '--table_prefix',
-      dest='table_prefix',
+      '--table',
+      dest='table',
       default='hits',
       help='Prefix for BigQuery daily tables to write to. '
       '_YYYYMMDD is appended to the table prefix.')
   args, pipeline_args = parser.parse_known_args(argv)
-  pipeline_args.extend(['--project=' + args.projectId])
+  pipeline_args.extend(['--project=' + args.project_id])
   options = PipelineOptions(pipeline_args)
 
   with beam.Pipeline(options=options) as p:
-    ( p | 'ReadTopic' >> beam.io.ReadFromPubSub(topic=args.input_topic)
-    | 'FormatHit' >> beam.ParDo(FormatHit())
-    | 'WriteHit' >> beam.io.WriteToBigQuery(
-        args.table_prefix,
-        args.dataset,
-        schema=get_schema(),
-        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
+    (p | 'ReadTopic' >> beam.io.ReadFromPubSub(topic=args.input_topic)
+     | 'FormatHit' >> beam.ParDo(FormatHit())
+     | 'WriteHit' >> beam.io.WriteToBigQuery(
+         args.table,
+         args.dataset,
+         schema=get_schema(),
+         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+         write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
 
 
 if __name__ == '__main__':
